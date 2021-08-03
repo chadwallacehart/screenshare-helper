@@ -1,11 +1,8 @@
 let targetTabs = [];
 let controlTab;
 
-function log(message){
-    if (typeof message === "string")
-        console.log(`background worker| `,  message);
-    else
-        console.log(`background worker| `, ...message)
+function log(...messages){
+    console.log(`background worker| `,  ...messages);
 }
 
 
@@ -13,6 +10,8 @@ chrome.runtime.onMessage.addListener(
     (request, sender, sendResponse) => {
         // ToDo: Edge doesn't have a sender.tab object
 
+        let tabId = sender.tab ? sender.tab.id : "undefined id";
+        log(`message from tab ${tabId} on ${sender.tab ? sender.tab.url : "undefined url"}`, request);
 
         if(request.message === "options page" )
             controlTab = sender.tab.id;
@@ -27,16 +26,15 @@ chrome.runtime.onMessage.addListener(
                 chrome.tabs.sendMessage(tab, request, null, null); //response callback removed
             });
         }
-        else {
-            let tabId = sender.tab ? sender.tab.id : "undefined id";
-
-            log(`message from tab ${tabId} on ${sender.tab ? sender.tab.url : "undefined url"}`, request);
-
-            if(!targetTabs.includes(tabId))
-                targetTabs.push(sender.tab.id);
+        else if(request.message === "unload"){
+            targetTabs = targetTabs.filter(tab=>tab.tabId !== tabId);
         }
-
-
+        else {
+            if(!request.captureHandle){
+                log("no capture handle on tab")
+            } else if(!targetTabs.find(tab=>tab.handle===request.captureHandle))
+                targetTabs.push({tabId: sender.tab.id, handle: request.captureHandle});
+        }
 
         if(sendResponse){
             sendResponse({wssh: "ACK"});

@@ -1,5 +1,5 @@
-function debug(message){
-    console.debug(`wssh content| `, message)
+function debug(...messages){
+    console.log(`wssh content| `,  ...messages);
 }
 
 debug(`content.js loaded on ${window.location.href}`);
@@ -9,39 +9,21 @@ function sendToBackground(message) {
 
     function backgroundMessageHandler(message) {
         if(message !== undefined && message.wssh && message.wssh !== "ACK")
-            debug(message)
+            console.debug(message)
     }
 
     try{
-        chrome.runtime.sendMessage(message, backgroundMessageHandler);
+        chrome.runtime.sendMessage(message); //, backgroundMessageHandler);
+        // debug("sendMessage: ", message)
     }
     catch(err){
-        debug(err)
+        console.debug(err)
     }
 }
 
 // Listen for updates from background.js
 chrome.runtime.onMessage.addListener(
     (request, sender) => {
-
-        /*
-        function backgroundMessageHandler(message) {
-            if(message !== undefined && message.wssh && message.wssh !== "ACK")
-                console.debug("wssh content: ", message);
-
-            if(message && message.keyEventInfo){
-                let keyboardEvent = new KeyboardEvent(message.keyEventInfo.type, {...message.keyEventInfo});
-                //console.log("rebuilt event:", keyboardEvent);
-                document.body.dispatchEvent(keyboardEvent);
-                console.debug(`wssh content: simulated ${keyboardEvent.key} in ${document.activeElement.tagName}`)
-            }
-        }
-
-
-        console.debug("wssh content: message from background.js", request, sender);
-        backgroundMessageHandler(request)
-         */
-
         if(request && request.keyEventInfo){
             let keyboardEvent = new KeyboardEvent(request.keyEventInfo.type, {...request.keyEventInfo});
             //console.log("rebuilt event:", keyboardEvent);
@@ -49,10 +31,25 @@ chrome.runtime.onMessage.addListener(
             debug(`simulated ${keyboardEvent.key} in ${document.activeElement.tagName}`)
         }
         else if(request !== undefined && request.wssh && request.wssh !== "ACK")
-            console.debug(`from ${sender.id}`, request);
+            debug(`from ${sender.id}`, request);
     }
 );
 
-sendToBackground({url: window.location.href});
 
+/*
+ * Capture Handle ID setup
+ */
+// https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
+let handleId = (Math.random() + 1).toString(36).substring(2);
+navigator.mediaDevices.setCaptureHandleConfig(
+    { handle: handleId, permittedOrigins: ["*"] }
+);
+debug(`captureHandle: ${handleId}`);
 
+// ToDo: remove the URL before release - it shouldn't matter
+sendToBackground({url: window.location.href, captureHandle: handleId});
+
+// Tell background to remove unneeded tabs
+window.addEventListener('beforeunload', () => {
+    sendToBackground({message: "unload"})
+});
