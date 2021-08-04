@@ -1,5 +1,5 @@
 function debug(...messages){
-    console.log(`wssh content| `,  ...messages);
+    console.log(`wssh 🕵️‍ `,  ...messages);
 }
 
 debug(`content.js loaded on ${window.location.href}`);
@@ -53,3 +53,37 @@ sendToBackground({url: window.location.href, captureHandle: handleId});
 window.addEventListener('beforeunload', () => {
     sendToBackground({message: "unload"})
 });
+
+/*
+ * Injection
+ */
+/*
+async function inject() {
+    let script = document.createElement('script');
+
+    await fetch(chrome.runtime.getURL('inject.js') )
+        .then(resp => resp.text())
+        .then(scriptText => {
+            script.textContent = scriptText;
+            // console.log(scriptText);
+
+            script.onload = () => {
+                debug("webwebcam content: webwebcam inject script loaded");
+                document.head.removeChild(this)
+            };
+            // ToDo: add to head or body? append or prepend?
+            (document.head || document.documentElement).appendChild(script); //prepend
+
+        })
+        .catch(console.error);
+}
+
+//inject();
+
+// doesn't work
+/*
+chrome.scripting.executeScript({
+    file: 'inject.js'
+});
+*/
+

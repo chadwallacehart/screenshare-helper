@@ -2,9 +2,23 @@ let targetTabs = [];
 let controlTab;
 
 function log(...messages){
-    console.log(`background worker| `,  ...messages);
+    console.log(`👷 ️`,  ...messages);
 }
 
+
+chrome.runtime.onInstalled.addListener(async () => {
+
+
+    // Do this to load a help page
+    /*
+    let url = chrome.runtime.getURL("onInstallPage.html");
+    let inputTab = await chrome.tabs.create({url});
+    console.log(`inputTab ${inputTab.id}`)
+     */
+
+    chrome.runtime.openOptionsPage();
+
+});
 
 chrome.runtime.onMessage.addListener(
     (request, sender, sendResponse) => {
@@ -44,18 +58,30 @@ chrome.runtime.onMessage.addListener(
         }
     });
 
-chrome.runtime.onInstalled.addListener(async () => {
 
+function inject(){
+    let script = document.createElement('script');
+    script.src = chrome.runtime.getURL('inject.js');
+    script.onload = function() {
+        // console.debug("wssh 💉 inject script loaded");
+        document.head.removeChild(this)
+    };
+    (document.head || document.documentElement).appendChild(script); //prepend
+}
 
-    // Do this to load a help page
-    /*
-    let url = chrome.runtime.getURL("onInstallPage.html");
-    let inputTab = await chrome.tabs.create({url});
-    console.log(`inputTab ${inputTab.id}`)
-     */
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    // log(`tab ${tabId} updated to ${changeInfo.status}: ${tab.url}`);
+    if (changeInfo.status === 'loading' && /^http/.test(tab.url)) { // complete
 
-    chrome.runtime.openOptionsPage();
-
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            function: inject
+        })
+            .then(() => {
+                log(`inject.js into tab ${tabId}`);
+            })
+            .catch(err => log(err));
+    }
 });
 
 log("background.js loaded");
