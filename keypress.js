@@ -5,10 +5,10 @@ function updateKeys(){
 }
 
 document.addEventListener('keydown', async e => {
-    const key = e.code;
-
     await relayToTabs(e);
 
+    // just for display
+    const key = e.code;
     if(!keys.includes(key)){
         console.log(`${key} down`, keys);
         keys.push(key);
@@ -19,17 +19,12 @@ document.addEventListener('keydown', async e => {
 document.addEventListener('keyup', async e => {
     await relayToTabs(e);
 
+    // just for display
     const key = e.code;
     console.log(`${key} up`, keys);
     keys = keys.filter(item => item !== key);
     updateKeys();
 });
-
-chrome.runtime.sendMessage({message: "options page"});
-
-// let fakeObj = {foo: {bar: "baz", baz: "goo"}};
-// chrome.runtime.sendMessage(fakeObj);
-
 
 async function relayToTabs(event){
 
@@ -37,17 +32,6 @@ async function relayToTabs(event){
         console.error("key error", event);
         return
     }
-
-    //const keyEvent = new KeyboardEvent(, {...event});
-    //const keyEvent = new KeyboardEvent(event.type, {...event});
-
-    /*
-    let sendableKeyboardEvent = new KeyboardEvent(event.type, {...event});
-    delete sendableKeyboardEvent.view;
-    delete sendableKeyboardEvent.path;
-     */
-
-
 
     const keyEventInfo = {
         altKey: event.altKey,
@@ -76,12 +60,6 @@ async function relayToTabs(event){
 
     console.log("KeyboardEvent:", keyEventInfo);
     chrome.runtime.sendMessage({keyEventInfo: keyEventInfo});
-
-    /*
-    let k = new KeyboardEvent(event.type, {...keyEventInfo});
-    console.log("original event:", event);
-    console.log("rebuilt event:", k);
-     */
 }
 
 /*

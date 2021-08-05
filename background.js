@@ -1,8 +1,8 @@
-let targetTabs = [];
-let controlTab;
+let openTabs = [];
+let capturedHandle = false;
 
-function log(...messages){
-    console.log(`👷 ️`,  ...messages);
+function log(...messages) {
+    console.log(`👷 ️`, ...messages);
 }
 
 
@@ -27,42 +27,49 @@ chrome.runtime.onMessage.addListener(
         let tabId = sender.tab ? sender.tab.id : "undefined id";
         log(`message from tab ${tabId} on ${sender.tab ? sender.tab.url : "undefined url"}`, request);
 
-        if(request.message === "options page" )
-            controlTab = sender.tab.id;
-
-            //console.log(`incoming message: ${request.message}`);
-
-        else if(request.keyEventInfo){
+        // Relay key events
+        if (request.keyEventInfo) {
             log(`incoming key event: `, request.keyEventInfo.keyCode);
 
-            // now send this to active content pages
-            targetTabs.forEach(tab => {
-                chrome.tabs.sendMessage(tab, request, null, null); //response callback removed
-            });
-        }
-        else if(request.message === "unload"){
-            targetTabs = targetTabs.filter(tab=>tab.tabId !== tabId);
-        }
-        else {
-            if(!request.captureHandle){
-                log("no capture handle on tab")
-            } else if(!targetTabs.find(tab=>tab.handle===request.captureHandle))
-                targetTabs.push({tabId: sender.tab.id, handle: request.captureHandle});
+            const targetTab = openTabs.find(tab => tab.handle === capturedHandle);
+            if (targetTab)
+                chrome.tabs.sendMessage(targetTab.tabId, request); //response callback removed
+            else {
+                log(`No captured tab to relay keys to`);
+            }
+        // set the last getDisplayMedia call
+        } else if (request.gotDisplayMediaHandle) {
+            capturedHandle = request.gotDisplayMediaHandle;
+            log(`getDisplayMedia with Tab active:  ${sender.tab.url}`);
+        } else if (request.lostDisplayMediaHandle) {
+            capturedHandle = false;
+            log(`getDisplayMedia with Tab removed:  ${sender.tab.url}`);
+        } else if (request.unload) {
+            openTabs = openTabs.filter(tab => tab.tabId !== tabId);
+            // ToDo: check if this is capturedHandle?
+        } else if (request.captureHandle && !openTabs.find(tab => tab.handle === request.captureHandle)) {
+            openTabs.push({tabId: sender.tab.id, handle: request.captureHandle});
+            log(`New tab opened: ${sender.tab.url}`)
+        } else {
+            log("ERROR: unprocessed message")
         }
 
-        if(sendResponse){
+        if (sendResponse) {
             sendResponse({wssh: "ACK"});
-        }
-        else {
+        } else {
             log("response not requested");
         }
     });
 
 
-function inject(){
+/*
+ * Add our injection script new tabs
+ */
+
+function inject() {
     let script = document.createElement('script');
     script.src = chrome.runtime.getURL('inject.js');
-    script.onload = function() {
+    script.onload = function () {
         // console.debug("wssh 💉 inject script loaded");
         document.head.removeChild(this)
     };
@@ -71,10 +78,12 @@ function inject(){
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // log(`tab ${tabId} updated to ${changeInfo.status}: ${tab.url}`);
-    if (changeInfo.status === 'loading' && /^http/.test(tab.url)) { // complete
+    if (tab.url.match(/^chrome-extension:\/\//) && changeInfo.status === 'complete') {
+        log(`extension tab opened: ${tab.url}`)
+    } else if (changeInfo.status === 'loading' && /^http/.test(tab.url)) { // complete
 
         chrome.scripting.executeScript({
-            target: { tabId: tabId },
+            target: {tabId: tabId},
             function: inject
         })
             .then(() => {
@@ -82,6 +91,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             })
             .catch(err => log(err));
     }
+    //else log(`tab ${tabId} updated to ${changeInfo.status}`, tab);
+
 });
 
 log("background.js loaded");
