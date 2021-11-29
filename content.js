@@ -9,8 +9,9 @@ debug(`content.js loaded on ${window.location.href}`);
  * keyInfo needs to contain most of the relevant info from the original keyBoardEvent
  */
 function simulateKeyStroke(keyInfo){
+    keyInfo.srcElement = document.activeElement;
     let keyboardEvent = new KeyboardEvent(keyInfo.type, {...keyInfo});
-    keyboardEvent.srcElement = document.activeElement;
+    document.body.focus();
     document.body.dispatchEvent(keyboardEvent);
     debug(`simulated ${keyboardEvent.key} in ${document.activeElement.tagName}`)
 }
